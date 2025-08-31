@@ -1,0 +1,45 @@
+# MikroTik VPN Management System - Git Ignore File
+
+# Logs
+logs/
+*.log
+
+# Backup files
+backups/
+*.tar.gz
+*.backup
+
+# Configuration files with sensitive data
+config/setup_summary.txt
+routers/*.conf
+routers/*_commands.txt
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# OpenVPN certificates (if accidentally copied)
+*.crt
+*.key
+*.pem
+
+# User-specific files
+.env
+*.env
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS generated files
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs* 
