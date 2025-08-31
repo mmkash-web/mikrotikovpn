@@ -78,6 +78,16 @@ display_system_status() {
     echo -e "${PURPLE}=== System Status ===${NC}"
     check_openvpn_status
     echo -e "${BLUE}Server IP: $(get_server_ip)${NC}"
+    
+    # Show domain information if configured
+    if [ -f "$CONFIG_DIR/domain.conf" ]; then
+        source "$CONFIG_DIR/domain.conf"
+        echo -e "${GREEN}Domain: $DOMAIN_NAME${NC}"
+        echo -e "${GREEN}VPS Address: $VPS_ADDRESS${NC}"
+    else
+        echo -e "${YELLOW}Domain: Not configured (using IP only)${NC}"
+    fi
+    
     echo -e "${BLUE}OpenVPN Port: 1194${NC}"
     echo -e "${BLUE}VPN Network: 10.8.0.0/24${NC}"
     
@@ -102,9 +112,26 @@ display_system_status() {
 add_router() {
     echo -e "${CYAN}=== Add New Router ===${NC}"
     
-    # Get VPS address
+    # Check if domain is configured
     local vps_address
-    read -p "Enter VPS IP or domain name: " vps_address
+    if [ -f "$CONFIG_DIR/domain.conf" ]; then
+        source "$CONFIG_DIR/domain.conf"
+        echo -e "${GREEN}Domain Configuration Found:${NC}"
+        echo -e "  Domain: $DOMAIN_NAME"
+        echo -e "  VPS IP: $VPS_IP"
+        echo ""
+        read -p "Use configured domain '$DOMAIN_NAME'? (Y/n): " -n 1 -r
+        echo
+        
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            read -p "Enter VPS IP or domain name: " vps_address
+        else
+            vps_address="$DOMAIN_NAME"
+            echo -e "${GREEN}Using configured domain: $vps_address${NC}"
+        fi
+    else
+        read -p "Enter VPS IP or domain name: " vps_address
+    fi
     
     if [ -z "$vps_address" ]; then
         error "VPS address cannot be empty"
@@ -120,6 +147,10 @@ add_router() {
     if "$PROJECT_DIR/mikrotik_config_generator.sh" "$vps_address" "$router_name"; then
         log "Router configuration generated successfully"
         echo -e "${GREEN}✓ Router configuration generated successfully!${NC}"
+        echo ""
+        echo -e "${BLUE}Router Configuration Files:${NC}"
+        echo -e "  Commands: $ROUTERS_DIR/router$(ls "$ROUTERS_DIR"/router*.conf | wc -l)_commands.txt"
+        echo -e "  Config: $ROUTERS_DIR/router$(ls "$ROUTERS_DIR"/router*.conf | wc -l).conf"
     else
         error "Failed to generate router configuration"
         return 1
@@ -378,6 +409,179 @@ view_logs() {
     read -p "Press Enter to continue..."
 }
 
+# Function to manage domain configuration
+domain_management() {
+    echo -e "${CYAN}=== Domain Management ===${NC}"
+    
+    # Check if domain configuration exists
+    if [ -f "$CONFIG_DIR/domain.conf" ]; then
+        echo -e "${GREEN}Current Domain Configuration:${NC}"
+        source "$CONFIG_DIR/domain.conf"
+        echo -e "  Domain: $DOMAIN_NAME"
+        echo -e "  VPS IP: $VPS_IP"
+        echo -e "  VPS Address: $VPS_ADDRESS"
+        echo -e "  Configured: $CONFIGURED_DATE"
+        echo ""
+    else
+        echo -e "${YELLOW}No domain configuration found.${NC}"
+        echo ""
+    fi
+    
+    echo -e "${BLUE}Domain Management Options:${NC}"
+    echo "  1. Setup new domain"
+    echo "  2. Verify domain configuration"
+    echo "  3. Change domain"
+    echo "  4. Remove domain (use IP only)"
+    echo "  5. Back to main menu"
+    echo ""
+    
+    read -p "Enter your choice (1-5): " domain_choice
+    
+    case $domain_choice in
+        1)
+            setup_new_domain
+            ;;
+        2)
+            verify_domain
+            ;;
+        3)
+            change_domain
+            ;;
+        4)
+            remove_domain
+            ;;
+        5)
+            return
+            ;;
+        *)
+            error "Invalid choice"
+            return 1
+            ;;
+    esac
+    
+    echo ""
+    read -p "Press Enter to continue..."
+}
+
+# Function to setup new domain
+setup_new_domain() {
+    echo -e "${CYAN}=== Setup New Domain ===${NC}"
+    
+    # Get current VPS IP
+    local current_ip=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    echo -e "Current VPS IP: $current_ip"
+    echo ""
+    
+    read -p "Enter your domain name (e.g., remote.netbill.site): " new_domain
+    
+    if [ -z "$new_domain" ]; then
+        error "Domain name cannot be empty"
+        return 1
+    fi
+    
+    echo -e "\n${YELLOW}IMPORTANT: Create an A record in your DNS:${NC}"
+    echo -e "  $new_domain    A    $current_ip"
+    echo -e "  TTL: 300 (or lowest available)"
+    echo ""
+    read -p "Press Enter after creating the DNS record..."
+    
+    # Verify domain
+    echo -e "\n${BLUE}Verifying domain configuration...${NC}"
+    if "$PROJECT_DIR/domain_manager.sh" verify "$new_domain"; then
+        # Save domain configuration
+        cat > "$CONFIG_DIR/domain.conf" << EOF
+# Domain Configuration
+DOMAIN_NAME="$new_domain"
+VPS_IP="$current_ip"
+VPS_ADDRESS="$new_domain"
+CONFIGURED_DATE="$(date)"
+EOF
+        echo -e "\n${GREEN}✓ Domain configuration saved successfully!${NC}"
+        echo -e "${BLUE}You can now use '$new_domain' in your router configurations.${NC}"
+    else
+        echo -e "\n${YELLOW}⚠ Domain verification failed.${NC}"
+        echo -e "${YELLOW}You can continue setup and verify later.${NC}"
+    fi
+}
+
+# Function to verify domain
+verify_domain() {
+    echo -e "${CYAN}=== Verify Domain ===${NC}"
+    
+    if [ -f "$CONFIG_DIR/domain.conf" ]; then
+        source "$CONFIG_DIR/domain.conf"
+        echo -e "Verifying domain: $DOMAIN_NAME"
+        "$PROJECT_DIR/domain_manager.sh" verify "$DOMAIN_NAME"
+    else
+        echo -e "${YELLOW}No domain configuration found.${NC}"
+        echo -e "Use option 1 to setup a new domain first."
+    fi
+}
+
+# Function to change domain
+change_domain() {
+    echo -e "${CYAN}=== Change Domain ===${NC}"
+    
+    if [ -f "$CONFIG_DIR/domain.conf" ]; then
+        source "$CONFIG_DIR/domain.conf"
+        echo -e "Current domain: $DOMAIN_NAME"
+        echo ""
+    fi
+    
+    read -p "Enter new domain name: " new_domain
+    
+    if [ -z "$new_domain" ]; then
+        error "Domain name cannot be empty"
+        return 1
+    fi
+    
+    # Get current VPS IP
+    local current_ip=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    
+    echo -e "\n${YELLOW}IMPORTANT: Create an A record in your DNS:${NC}"
+    echo -e "  $new_domain    A    $current_ip"
+    echo ""
+    read -p "Press Enter after creating the DNS record..."
+    
+    # Verify new domain
+    if "$PROJECT_DIR/domain_manager.sh" verify "$new_domain"; then
+        # Update domain configuration
+        cat > "$CONFIG_DIR/domain.conf" << EOF
+# Domain Configuration
+DOMAIN_NAME="$new_domain"
+VPS_IP="$current_ip"
+VPS_ADDRESS="$new_domain"
+CONFIGURED_DATE="$(date)"
+EOF
+        echo -e "\n${GREEN}✓ Domain changed to: $new_domain${NC}"
+        echo -e "${YELLOW}Note: Update your router configurations to use the new domain.${NC}"
+    else
+        echo -e "\n${RED}✗ Domain verification failed. Cannot change domain.${NC}"
+    fi
+}
+
+# Function to remove domain
+remove_domain() {
+    echo -e "${CYAN}=== Remove Domain ===${NC}"
+    
+    if [ -f "$CONFIG_DIR/domain.conf" ]; then
+        source "$CONFIG_DIR/domain.conf"
+        echo -e "Current domain: $DOMAIN_NAME"
+        echo ""
+        read -p "Are you sure you want to remove domain '$DOMAIN_NAME'? (y/N): " -n 1 -r
+        echo
+        
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -f "$CONFIG_DIR/domain.conf"
+            echo -e "${GREEN}✓ Domain configuration removed.${NC}"
+            echo -e "${BLUE}System will now use IP address only.${NC}"
+            echo -e "${YELLOW}Note: Update your router configurations to use IP address.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No domain configuration found.${NC}"
+    fi
+}
+
 # Function to display main menu
 display_menu() {
     echo -e "${PURPLE}Main Menu:${NC}"
@@ -389,7 +593,8 @@ display_menu() {
     echo "  6. Monitor Connections"
     echo "  7. View Logs"
     echo "  8. System Status"
-    echo "  9. Exit"
+    echo "  9. Domain Management"
+    echo "  10. Exit"
     echo ""
 }
 
@@ -424,11 +629,14 @@ handle_choice() {
             read -p "Press Enter to continue..."
             ;;
         9)
+            domain_management
+            ;;
+        10)
             echo -e "${GREEN}Goodbye!${NC}"
             exit 0
             ;;
         *)
-            error "Invalid choice. Please enter a number between 1 and 9."
+            error "Invalid choice. Please enter a number between 1 and 10."
             read -p "Press Enter to continue..."
             ;;
     esac
@@ -450,7 +658,7 @@ main() {
         display_system_status
         display_menu
         
-        read -p "Enter your choice (1-9): " choice
+        read -p "Enter your choice (1-10): " choice
         handle_choice "$choice"
     done
 }

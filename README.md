@@ -9,34 +9,57 @@ This project provides a complete solution for:
 - Generating MikroTik router configurations
 - Managing multiple router connections through a menu system
 - Monitoring and maintaining VPN connections
+- **Domain-based VPN management** with automatic DNS verification
+- **Enterprise-grade reliability** with health monitoring and auto-recovery
+- **Professional deployment** with GitHub Actions and comprehensive documentation
+
+### 🚀 **Key Benefits**
+- **One-Click Installation**: Complete setup with a single command
+- **Domain Flexibility**: Change VPS providers without reconfiguring routers
+- **Automatic Recovery**: System recovers automatically after reboots
+- **Professional Management**: Integrated menu system with domain management
+- **Production Ready**: Health monitoring, backups, and logging included
 
 ## Project Structure
 
 ```
 project/
-├── vps_setup.sh              # VPS OpenVPN server setup script
+├── vps_setup.sh              # VPS OpenVPN server setup script (with domain support)
 ├── mikrotik_config_generator.sh  # MikroTik configuration generator
-├── menu.sh                   # Main menu system
+├── menu.sh                   # Main menu system (with domain management)
+├── domain_manager.sh         # Domain management and verification
+├── health_check.sh           # System health monitoring
+├── startup.sh                # Startup and recovery management
+├── setup_monitoring.sh       # Automated monitoring setup
 ├── install.sh                # Installation script
 ├── uninstall.sh              # Uninstallation script
 ├── backup.sh                 # Backup utility
 ├── monitor.sh                # Connection monitoring
+├── quick_install.sh          # One-click installation
+├── deploy.sh                 # Interactive deployment
 ├── config/
-│   ├── openvpn.conf          # OpenVPN server configuration
-│   ├── firewall.rules        # Firewall configuration
-│   └── dhcp.conf            # DHCP configuration
+│   ├── domain.conf           # Domain configuration
+│   ├── setup_summary.txt     # System setup summary
+│   └── system.conf           # System configuration
 ├── routers/
 │   ├── router1.conf
+│   ├── router1_commands.txt
 │   ├── router2.conf
 │   └── ...
 ├── logs/
-│   ├── vpn.log
+│   ├── health.log
+│   ├── startup.log
 │   └── system.log
 ├── backups/
 │   └── ...
 ├── templates/
 │   ├── mikrotik_template.txt
 │   └── openvpn_template.conf
+├── .github/workflows/
+│   └── test.yml              # GitHub Actions testing
+├── LICENSE                   # MIT License
+├── CONTRIBUTING.md           # Contribution guidelines
+├── CHANGELOG.md              # Version history
 └── README.md
 ```
 
@@ -45,10 +68,18 @@ project/
 - **Automated VPS Setup**: Complete OpenVPN server installation and configuration
 - **Router Management**: Add, remove, and manage multiple MikroTik routers
 - **Configuration Generation**: Automatic generation of router-specific configs
-- **Backup System**: Backup and restore configurations
-- **Monitoring**: Real-time connection monitoring
-- **Security**: Built-in security best practices
-- **Logging**: Comprehensive logging system
+- **Backup System**: Backup and restore configurations with automated scheduling
+- **Monitoring**: Real-time connection monitoring and health checks
+- **Security**: Built-in security best practices with 2048-bit RSA certificates
+- **Logging**: Comprehensive logging system with automatic rotation
+- **Reliability**: Automatic recovery after reboots and system failures
+- **Health Monitoring**: Continuous health checks with automatic repairs
+- **Startup Services**: Ensures all services start automatically on boot
+- **Domain Support**: Use domain names instead of IP addresses for flexible VPS management
+- **Integrated Domain Management**: Built-in domain setup, verification, and management
+- **Smart Configuration**: Automatic domain detection and usage in router configs
+- **DNS Verification**: Automatic verification that domain points to VPS IP
+- **Professional Deployment**: GitHub Actions, comprehensive documentation, and licensing
 
 ## Prerequisites
 
@@ -64,8 +95,66 @@ project/
 git clone https://github.com/mmkash-web/mikrotikovpn.git
 cd mikrotikovpn
 
-# Run one-click installation
+# Run one-click installation (includes all enhanced features)
 sudo ./quick_install.sh
+```
+
+### Complete Installation Walkthrough
+
+#### Step 1: VPS Setup
+```bash
+# 1. Clone the repository
+git clone https://github.com/mmkash-web/mikrotikovpn.git
+cd mikrotikovpn
+
+# 2. Run one-click installation
+sudo ./quick_install.sh
+
+# 3. Setup VPS with domain support
+sudo ./vps_setup.sh
+# During setup, you'll be prompted for:
+# - Domain name (e.g., remote.netbill.site)
+# - DNS configuration instructions
+# - Automatic domain verification
+```
+
+#### Step 2: Domain Configuration
+```bash
+# If you didn't setup domain during VPS setup, you can do it now:
+sudo ./domain_manager.sh setup remote.netbill.site
+
+# Or use the integrated menu system:
+sudo ./menu.sh
+# Select option 9: Domain Management
+# Then option 1: Setup new domain
+```
+
+#### Step 3: Router Management
+```bash
+# Access the management menu
+sudo ./menu.sh
+
+# Add your first router:
+# 1. Select option 1: Add MikroTik Router
+# 2. System will automatically use configured domain
+# 3. Enter router name (optional)
+# 4. Configuration files will be generated
+
+# Router configuration files will be created in:
+# /opt/mikrotik-vpn/routers/router1_commands.txt
+# /opt/mikrotik-vpn/routers/router1.conf
+```
+
+#### Step 4: Enhanced Monitoring (Optional)
+```bash
+# Setup automated monitoring and health checks
+sudo ./setup_monitoring.sh
+
+# This installs:
+# - Health monitoring service (every 5 minutes)
+# - Startup service (automatic recovery)
+# - Automated backups (every 6 hours)
+# - Log rotation and cleanup
 ```
 
 ### Option 2: Manual Installation
@@ -158,6 +247,9 @@ The `vps_setup.sh` script will:
 - Configure OpenVPN server
 - Set up firewall rules
 - Enable and start services
+- **Domain Configuration**: Interactive domain setup with DNS verification
+- **Automatic Verification**: Checks if domain points to VPS IP
+- **Configuration Storage**: Saves domain settings for future use
 
 ### 2. Router Configuration
 
@@ -175,6 +267,9 @@ The menu system provides:
 - Backup configurations
 - Monitor connections
 - System status
+- **Domain Management**: Setup, verify, change, and remove domains
+- **Smart Router Addition**: Automatic domain detection and usage
+- **Enhanced Status Display**: Shows domain information in system status
 
 ## Security Considerations
 
@@ -183,6 +278,9 @@ The menu system provides:
 - Firewall rules included for basic security
 - Unique credentials for each router
 - Certificate-based authentication
+- Domain-based connections for enhanced security
+- Automatic certificate validation
+- Secure configuration storage
 
 ## Troubleshooting
 
@@ -197,6 +295,7 @@ The menu system provides:
    - Verify VPS IP/domain is correct
    - Check port 1194 is open
    - Ensure router configuration is correct
+   - Verify domain DNS resolution: `sudo ./domain_manager.sh verify your-domain.com`
 
 3. **Connection drops**
    - Check VPS resources
@@ -215,7 +314,10 @@ The menu system provides:
 
 - OpenVPN logs: `/var/log/openvpn.log`
 - System logs: `/var/log/syslog`
-- Application logs: `./logs/`
+- Application logs: `/opt/mikrotik-vpn/logs/`
+- Health monitoring logs: `/opt/mikrotik-vpn/logs/health.log`
+- Startup logs: `/opt/mikrotik-vpn/logs/startup.log`
+- Domain management logs: `/opt/mikrotik-vpn/logs/config_generator.log`
 
 ### Platform-Specific Solutions
 
@@ -264,6 +366,79 @@ sudo ./quick_install.sh
    apt update && apt upgrade
    ```
 
+4. **Verify domain configuration:**
+   ```bash
+   sudo ./domain_manager.sh verify your-domain.com
+   ```
+
+5. **Check system health:**
+   ```bash
+   sudo ./health_check.sh check
+   ```
+
+### Enhanced Reliability Features
+
+#### **Automatic Recovery After Reboots**
+- **Startup Service**: Automatically ensures all VPN services are running
+- **Health Monitoring**: Continuous health checks every 5 minutes
+- **Auto-Repair**: Automatically fixes common issues without manual intervention
+
+#### **Domain-Based VPN Connections**
+- **Flexible VPS Management**: Use domain names instead of hardcoded IP addresses
+- **Easy VPS Migration**: Change VPS providers without reconfiguring routers
+- **Professional Setup**: More professional than IP-based connections
+- **Load Balancing**: Point domain to different VPS servers as needed
+- **Integrated Management**: Built-in domain setup and verification in menu system
+
+```bash
+# Setup domain-based VPN connection
+sudo ./domain_manager.sh setup remote.netbill.site
+
+# Verify domain configuration
+sudo ./domain_manager.sh verify remote.netbill.site
+
+# Use domain in router configurations
+# Instead of: connect-to=192.168.1.100
+# Use: connect-to=remote.netbill.site
+
+# Or use the integrated menu system:
+sudo ./menu.sh
+# Then select option 9: Domain Management
+```
+
+#### **Setup Enhanced Monitoring**
+```bash
+# Install enhanced monitoring and reliability features
+sudo ./setup_monitoring.sh
+
+# This will install:
+# ✓ Health monitoring service (runs every 5 minutes)
+# ✓ Startup service (ensures services start on boot)
+# ✓ Automated cron jobs for backups and monitoring
+# ✓ Log rotation and cleanup
+```
+
+#### **Health Check Commands**
+```bash
+# Run manual health check
+sudo ./health_check.sh check
+
+# Start continuous monitoring
+sudo ./health_check.sh monitor
+
+# Setup as system service
+sudo ./health_check.sh setup
+```
+
+#### **Startup Management**
+```bash
+# Run startup process manually
+sudo ./startup.sh
+
+# Setup startup service (runs automatically on boot)
+sudo ./startup.sh setup
+```
+
 ### Certificate Renewal
 
 Certificates are valid for 10 years by default. To renew:
@@ -304,8 +479,15 @@ sudo ./deploy.sh
 - **`quick_install.sh`** - One-click installation (recommended for most users)
 - **`deploy.sh`** - Interactive deployment with options
 - **`install.sh`** - Full system installation
-- **`vps_setup.sh`** - OpenVPN server setup only
-- **`menu.sh`** - Router management interface
+- **`vps_setup.sh`** - OpenVPN server setup with domain support
+- **`menu.sh`** - Router management interface with domain management
+- **`domain_manager.sh`** - Domain setup and verification
+- **`health_check.sh`** - System health monitoring
+- **`startup.sh`** - Startup and recovery management
+- **`setup_monitoring.sh`** - Automated monitoring setup
+- **`backup.sh`** - Backup and restore configurations
+- **`monitor.sh`** - Connection monitoring and status
+- **`uninstall.sh`** - Complete system removal
 
 ### GitHub Actions
 This repository includes GitHub Actions for:
@@ -368,12 +550,45 @@ git branch -d feature/new-feature
 
 ## Contributing
 
-Feel free to submit improvements and bug fixes.
+Feel free to submit improvements and bug fixes. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+### Development Setup
+```bash
+# Clone the repository
+git clone https://github.com/mmkash-web/mikrotikovpn.git
+cd mikrotikovpn
+
+# Create a feature branch
+git checkout -b feature/your-feature-name
+
+# Make your changes and test
+sudo ./quick_install.sh
+
+# Commit and push
+git add .
+git commit -m "Add: description of your feature"
+git push origin feature/your-feature-name
+
+# Create a Pull Request on GitHub
+```
 
 ---
 
-**Note**: This is a basic implementation. For production use, consider additional security measures such as:
-- Stronger encryption algorithms
-- Additional firewall rules
-- Intrusion detection systems
-- Regular security audits 
+## Version History
+
+See [CHANGELOG.md](CHANGELOG.md) for a complete version history.
+
+### Latest Version: 1.0.0
+- **Initial Release**: Complete MikroTik VPN Management System
+- **Domain Support**: Integrated domain management and verification
+- **Enhanced Reliability**: Health monitoring and automatic recovery
+- **Professional Features**: GitHub Actions, comprehensive documentation
+
+---
+
+**Note**: This is a production-ready implementation with enterprise-grade features. For additional security in high-risk environments, consider:
+- Stronger encryption algorithms (AES-256-GCM)
+- Additional firewall rules and intrusion detection
+- Regular security audits and penetration testing
+- Multi-factor authentication for management access
+- Encrypted configuration storage 

@@ -207,14 +207,14 @@ chmod +x /opt/mikrotik-vpn/backup.sh
 
 # Create configuration template
 log "Creating MikroTik configuration template..."
-cat > /opt/mikrotik-vpn/templates/mikrotik_template.txt << 'EOF'
+cat > /opt/mikrotik-vpn/templates/mikrotik_template.txt << EOF
 # MikroTik Router Configuration Template
 # Generated on: $(date)
 
 # OpenVPN Client Configuration
 /interface ovpn-client add
     name=ovpn-client
-    connect-to={{VPS_ADDRESS}}
+    connect-to=$VPS_ADDRESS
     port=1194
     user={{USERNAME}}
     password={{PASSWORD}}
@@ -231,8 +231,96 @@ cat > /opt/mikrotik-vpn/templates/mikrotik_template.txt << 'EOF'
 # /ip firewall filter add chain=forward action=accept src-address=10.8.0.0/24
 EOF
 
-# Get server IP address
+# Get server IP address and domain
 SERVER_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
+
+# Ask for domain name
+echo -e "\n${BLUE}Domain Configuration${NC}"
+echo "Current VPS IP: $SERVER_IP"
+echo ""
+echo -e "${YELLOW}Benefits of using a domain:${NC}"
+echo -e "  ✓ Change VPS providers without reconfiguring routers"
+echo -e "  ✓ More professional than IP addresses"
+echo -e "  ✓ Easier SSL certificate management"
+echo -e "  ✓ Load balancing and failover capabilities"
+echo ""
+read -p "Enter your domain name (e.g., remote.netbill.site) or press Enter to use IP only: " DOMAIN_NAME
+
+if [ -n "$DOMAIN_NAME" ]; then
+    echo -e "\n${GREEN}Domain name: $DOMAIN_NAME${NC}"
+    echo -e "${YELLOW}IMPORTANT: Create an A record in your DNS:${NC}"
+    echo -e "  $DOMAIN_NAME    A    $SERVER_IP"
+    echo -e "  TTL: 300 (or lowest available)"
+    echo ""
+    echo -e "${BLUE}DNS Setup Instructions:${NC}"
+    echo -e "  1. Go to your domain provider (Cloudflare, GoDaddy, etc.)"
+    echo -e "  2. Find DNS management section"
+    echo -e "  3. Add A record: $DOMAIN_NAME → $SERVER_IP"
+    echo -e "  4. Wait for DNS propagation (5-60 minutes)"
+    echo ""
+    read -p "Press Enter after creating the DNS record..."
+    
+    # Verify domain resolution
+    echo -e "\n${BLUE}Verifying domain configuration...${NC}"
+    local attempts=0
+    local max_attempts=5
+    
+    while [ $attempts -lt $max_attempts ]; do
+        local domain_ip=$(nslookup "$DOMAIN_NAME" 2>/dev/null | grep "Address:" | tail -1 | awk '{print $2}')
+        
+        if [ -n "$domain_ip" ] && [ "$domain_ip" != "Address:" ]; then
+            if [ "$domain_ip" = "$SERVER_IP" ]; then
+                echo -e "${GREEN}✓ SUCCESS: Domain '$DOMAIN_NAME' correctly points to this VPS${NC}"
+                VPS_ADDRESS="$DOMAIN_NAME"
+                break
+            else
+                echo -e "${YELLOW}⚠ Domain resolves to $domain_ip (expected: $SERVER_IP)${NC}"
+                echo -e "${YELLOW}DNS may still be propagating...${NC}"
+            fi
+        else
+            echo -e "${YELLOW}⚠ Domain does not resolve yet (attempt $((attempts + 1))/$max_attempts)${NC}"
+        fi
+        
+        attempts=$((attempts + 1))
+        if [ $attempts -lt $max_attempts ]; then
+            echo -e "${BLUE}Waiting 30 seconds before retry...${NC}"
+            sleep 30
+        fi
+    done
+    
+    if [ $attempts -eq $max_attempts ]; then
+        echo -e "${YELLOW}⚠ Domain verification incomplete. You can:${NC}"
+        echo -e "  1. Continue setup and verify later with: ./domain_manager.sh verify $DOMAIN_NAME"
+        echo -e "  2. Check DNS settings and try again"
+        echo -e "  3. Use IP address for now and add domain later"
+        echo ""
+        read -p "Continue with domain '$DOMAIN_NAME' anyway? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            VPS_ADDRESS="$DOMAIN_NAME"
+            echo -e "${GREEN}Continuing with domain: $DOMAIN_NAME${NC}"
+        else
+            VPS_ADDRESS="$SERVER_IP"
+            echo -e "${BLUE}Using IP address: $VPS_ADDRESS${NC}"
+        fi
+    fi
+else
+    VPS_ADDRESS="$SERVER_IP"
+    echo -e "${BLUE}Using IP address only: $VPS_ADDRESS${NC}"
+fi
+
+# Save domain configuration for later use
+if [ -n "$DOMAIN_NAME" ]; then
+    mkdir -p /opt/mikrotik-vpn/config
+    cat > /opt/mikrotik-vpn/config/domain.conf << EOF
+# Domain Configuration
+DOMAIN_NAME="$DOMAIN_NAME"
+VPS_IP="$SERVER_IP"
+VPS_ADDRESS="$VPS_ADDRESS"
+CONFIGURED_DATE="$(date)"
+EOF
+    echo -e "${GREEN}✓ Domain configuration saved${NC}"
+fi
 
 # Create initial configuration summary
 log "Creating configuration summary..."
@@ -242,6 +330,7 @@ MikroTik VPN Management System - Setup Summary
 
 Setup completed on: $(date)
 Server IP: $SERVER_IP
+VPS Address: $VPS_ADDRESS
 OpenVPN Port: 1194
 VPN Network: 10.8.0.0/24
 
@@ -303,6 +392,7 @@ echo -e "${GREEN}  VPS Setup Completed Successfully!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo -e "\n${BLUE}Server Information:${NC}"
 echo -e "  IP Address: $SERVER_IP"
+echo -e "  VPS Address: $VPS_ADDRESS"
 echo -e "  OpenVPN Port: 1194"
 echo -e "  VPN Network: 10.8.0.0/24"
 echo -e "\n${BLUE}Next Steps:${NC}"
